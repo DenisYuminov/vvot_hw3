@@ -1,0 +1,94 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install required packages
+  apt:
+    name:
+      - apache2
+      - php8.1
+      - php8.1-mbstring
+      - php8.1-gd
+      - php8.1-curl
+      - php8.1-xml
+      - php8.1-intl
+      - php8.1-bcmath
+      - php8.1-zip
+      - php8.1-pgsql
+      - certbot
+      - python3-certbot-apache
+      - unzip
+      - postgresql
+      - postgresql-contrib
+      - python3-psycopg2
+      - ssl-cert
+    state: present
+
+- name: Start and enable PostgreSQL service
+  systemd:
+    name: postgresql
+    state: started
+    enabled: yes
+
+- name: Create database for Nextcloud
+  community.postgresql.postgresql_db:
+    name: "{{ db_name }}"
+    state: present
+    login_user: postgres
+    login_password: "{{ db_root_password }}"
+
+- name: Create database user for Nextcloud
+  community.postgresql.postgresql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    state: present
+    db: "{{ db_name }}"
+    role_attr_flags: CREATEDB
+    login_user: postgres
+    login_password: "{{ db_root_password }}"
+  become: true
+
+- name: Download Nextcloud
+  get_url:
+    url: https://download.nextcloud.com/server/releases/latest.zip
+    dest: /tmp/nextcloud.zip
+
+- name: Unzip Nextcloud
+  unarchive:
+    src: /tmp/nextcloud.zip
+    dest: /var/www/
+    remote_src: yes
+
+- name: Set permissions for Nextcloud directory
+  file:
+    path: /var/www/nextcloud
+    owner: www-data
+    group: www-data
+    recurse: yes
+
+- name: Configure Apache for Nextcloud
+  template:
+    src: apache.conf.j2
+    dest: /etc/apache2/sites-available/nextcloud.conf
+  notify: Restart Apache
+
+- name: Enable Nextcloud site in Apache
+  command: a2ensite nextcloud.conf
+
+- name: Disable default Apache site
+  command: a2dissite 000-default.conf
+
+- name: Install Certbot
+  apt:
+    name:
+      - certbot
+      - python3-certbot-apache
+    state: present
+
+- name: Obtain SSL certificate using Certbot
+  command: >
+    certbot certonly --non-interactive --agree-tos --email {{ admin_email }}
+    --webroot -w /var/www/nextcloud -d {{ domain_name }}
+  environment:
+    PATH: "/usr/bin:/bin"

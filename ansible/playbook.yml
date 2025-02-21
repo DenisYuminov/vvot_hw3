@@ -1,0 +1,16 @@
+---
+- name: Install and configure Nextcloud
+  hosts: nextcloud
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - nextcloud
+
+  handlers:
+    - name: Restart Apache
+      service:
+        name: apache2
+        state: restarted
+
+

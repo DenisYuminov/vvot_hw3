@@ -1,0 +1,6 @@
+db_name: "nextcloud"
+db_user: "nextcloud_user"
+db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
+db_root_password: "{{ lookup('env', 'POSTGRES_ROOT_PASSWORD') }}"
+admin_email: "admin@{{ domain_name }}"
+domain_name: "project.vvot44.itiscl.ru"
